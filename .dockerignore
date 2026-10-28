@@ -1,0 +1,27 @@
+# Git
+.git
+.github
+
+# Local dependencies
+node_modules
+
+# Environment files and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# IDE files
+.vscode
+.idea
+
+# Logs
+*.log
+npm-debug.log*
+
+# Tests and coverage
+tests
+coverage
+
+# Documentation
+README.md
