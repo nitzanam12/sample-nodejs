@@ -14,6 +14,8 @@ COPY app.js package.json ./
 
 ENV NODE_ENV=production
 
+USER 65532:65532
+
 EXPOSE 8080
 
 CMD ["app.js"]
