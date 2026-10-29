@@ -1,1 +1,19 @@
+# Node.js
 node_modules/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
+
+# Environment variables and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
