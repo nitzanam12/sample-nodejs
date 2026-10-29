@@ -1,9 +1,9 @@
-name: CI
+name: CI/CD
 
 on:
-  push:
-    branches: ['feature/**']
   pull_request:
+    branches: [main]
+  push:
     branches: [main]
 
 permissions:
@@ -12,7 +12,6 @@ permissions:
 jobs:
   security:
     runs-on: ubuntu-24.04
-
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -28,16 +27,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Audit dependencies
+      - name: Dependency audit
         run: npm audit --audit-level=high
 
-      - name: SAST scan
+      - name: SAST
         run: pipx run --spec semgrep==1.181.1 semgrep scan --config p/default --severity ERROR --error .
 
-      - name: Build Docker image
+      - name: Build image
         run: docker build --pull -t sample-nodejs:${{ github.sha }} .
 
-      - name: Trivy image scan
+      - name: Scan image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: sample-nodejs:${{ github.sha }}
@@ -45,3 +44,80 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: '1'
           cache: 'false'
+
+      - name: Save scanned image
+        if: github.event_name == 'push'
+        run: docker save sample-nodejs:${{ github.sha }} | gzip -1 > "$RUNNER_TEMP/image.tar.gz"
+
+      - name: Upload image artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: scanned-image
+          path: ${{ runner.temp }}/image.tar.gz
+          retention-days: 1
+          compression-level: 0
+
+  publish:
+    needs: security
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+
+    concurrency:
+      group: sample-nodejs-release
+      cancel-in-progress: false
+
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: Download scanned image
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: scanned-image
+          path: ${{ runner.temp }}
+
+      - name: Load image
+        run: docker load -i "$RUNNER_TEMP/image.tar.gz"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::848349338166:role/sample-nodejs-github-ecr
+          aws-region: eu-north-1
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+
+      - name: Push SHA image
+        env:
+          ECR: 848349338166.dkr.ecr.eu-north-1.amazonaws.com/sample-nodejs
+        run: |
+          existing=$(aws ecr batch-get-image --repository-name sample-nodejs \
+            --image-ids imageTag="$GITHUB_SHA" \
+            --query 'images[0].imageId.imageTag' --output text)
+
+          if [[ "$existing" != "$GITHUB_SHA" ]]; then
+            docker tag "sample-nodejs:$GITHUB_SHA" "$ECR:$GITHUB_SHA"
+            docker push "$ECR:$GITHUB_SHA"
+          fi
+
+      - name: Semantic release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ECR: 848349338166.dkr.ecr.eu-north-1.amazonaws.com/sample-nodejs
+        run: |
+          npx --yes --package=semantic-release@25.0.9 \
+            --package=@semantic-release/exec@7.1.0 semantic-release
