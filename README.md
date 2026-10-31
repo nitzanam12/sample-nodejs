@@ -1,6 +1,6 @@
 # sample-nodejs
 
-A sample Express application deployed to Amazon EKS. This repository contains the Dockerfile, GitHub Actions pipeline, and Terraform infrastructure.
+A sample Node.js application deployed to Amazon EKS. This repository contains the Dockerfile, GitHub Actions pipeline, and Terraform infrastructure.
 
 - App: https://app.nitzan-assignment.com/my-app
 - GitOps repo: https://github.com/nitzanam12/sample-nodejs-gitops
