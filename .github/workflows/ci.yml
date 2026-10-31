@@ -12,6 +12,7 @@ permissions:
 jobs:
   security:
     runs-on: ubuntu-24.04
+
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -121,3 +122,41 @@ jobs:
         run: |
           npx --yes --package=semantic-release@25.0.9 \
             --package=@semantic-release/exec@7.1.0 semantic-release
+
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.GITOPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.GITOPS_APP_PRIVATE_KEY }}
+          owner: nitzanam12
+          repositories: sample-nodejs-gitops
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Checkout GitOps repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: nitzanam12/sample-nodejs-gitops
+          ref: main
+          token: ${{ steps.app-token.outputs.token }}
+          path: gitops
+          persist-credentials: false
+
+      - name: Update GitOps image tag
+        run: |
+          sed -i "s/^  tag: .*/  tag: \"$GITHUB_SHA\"/" gitops/helm/sample-nodejs/values.yaml
+          grep -q "tag: \"$GITHUB_SHA\"" gitops/helm/sample-nodejs/values.yaml
+
+      - name: Create GitOps pull request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          path: gitops
+          base: main
+          branch: automation/update-image
+          add-paths: helm/sample-nodejs/values.yaml
+          commit-message: "chore: update image to ${{ github.sha }}"
+          title: "chore: update image to ${{ github.sha }}"
+          body: "Automated image update after successful CI."
+          delete-branch: true
