@@ -2,13 +2,13 @@
 
 A sample Node.js application deployed to Amazon EKS. This repository contains the Dockerfile, GitHub Actions pipeline, and Terraform infrastructure.
 
-- App: https://app.nitzan-assignment.com/my-app
-- GitOps repo: https://github.com/nitzanam12/sample-nodejs-gitops
+- App: [https://app.nitzan-assignment.com/my-app](https://app.nitzan-assignment.com/my-app)
+- GitOps repo: [https://github.com/nitzanam12/sample-nodejs-gitops](https://github.com/nitzanam12/sample-nodejs-gitops)
 
 ## CI/CD
 
 1. Pull requests to main run npm audit, Semgrep, Docker build, and Trivy scanning.
-2. After a merge to main, the scanned image is pushed to private ECR with a commit SHA tag. Semantic Release handles versioning based on Conventional Commits.
+2. On eligible pushes to main, the scanned image is pushed to private ECR with a commit SHA tag. Semantic Release handles versioning based on Conventional Commits.
 3. A GitHub App opens a pull request to update image.tag in the GitOps repository.
 4. Once that PR is merged, Argo CD syncs the change and Kubernetes rolls out the new image.
 
@@ -22,6 +22,8 @@ Terraform in the infra/ directory manages:
 - EKS with two managed worker nodes, and a private ECR repository.
 - IAM roles for GitHub OIDC and the AWS Load Balancer Controller's Pod Identity.
 - An ACM certificate for app.nitzan-assignment.com.
+
+A Kubernetes Deployment was chosen because the application is stateless: replicas are interchangeable and do not need stable identities or persistent storage.
 
 The ALB serves HTTPS and redirects HTTP to HTTPS. Only /my-app and /about are routed publicly. Health checks use /ready directly against the application targets.
 
