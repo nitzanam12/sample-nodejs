@@ -23,7 +23,7 @@ Terraform in the infra/ directory manages:
 - IAM roles for GitHub OIDC and the AWS Load Balancer Controller's Pod Identity.
 - An ACM certificate for app.nitzan-assignment.com.
 
-A Kubernetes Deployment was chosen because the application is stateless: replicas are interchangeable and do not need stable identities or persistent storage.
+A Kubernetes Deployment was chosen because the application is stateless, replicas are interchangeable and do not need stable identities or persistent storage.
 
 The ALB serves HTTPS and redirects HTTP to HTTPS. Only /my-app and /about are routed publicly. Health checks use /ready directly against the application targets.
 
